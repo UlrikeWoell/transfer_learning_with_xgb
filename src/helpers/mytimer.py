@@ -5,7 +5,7 @@ A simple timer to record start time, end time and duration
 from datetime import datetime
 
 
-class Timer():
+class Timer:
 
     """
     A simple timer to record start time, end time and duration
@@ -18,8 +18,7 @@ class Timer():
         self.collection = None
 
     def start(self):
-        """Sets now as start time
-        """
+        """Sets now as start time"""
         self.start_time = datetime.now()
 
     def end(self):
@@ -31,9 +30,10 @@ class Timer():
         """Prints recorded duration
 
         Args:
-            verbose (bool, optional): Prints start and and end if True. Defaults to False.
+            verbose (bool, optional): Prints start and and end if True.
+            Defaults to False.
         """
         if verbose:
-            print(f'Start: {self.start_time}')
-            print(f'End: {self.end_time}')
-        print(f'Duration: {self.duration}')
+            print(f"Start: {self.start_time}")
+            print(f"End: {self.end_time}")
+        print(f"Duration: {self.duration}")
