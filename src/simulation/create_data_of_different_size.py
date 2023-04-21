@@ -1,7 +1,10 @@
-from src.data_generation.data_generator import DataGenerationStrategy, DataGenerator, additive_target_fct, logit_random_link_fct
-from src.data_generation.term import Term, TermFactory
+from src.data_generation.data_generator import (DataGenerationStrategy,
+                                                DataGenerator,
+                                                additive_target_fct,
+                                                logit_random_link_fct)
 from src.data_generation.distribution import NormalDist
-from src.util.data_in_out import write_data, reset_data_storage
+from src.data_generation.term import Term, TermFactory
+from src.util.data_in_out import reset_data_storage, write_data
 from src.util.timer import Timer
 
 
@@ -10,7 +13,7 @@ def create_data(n):
     var_dist = NormalDist({"loc": 0, "scale": 1})
 
     tf = TermFactory('X')
-    terms = tf.produce_n(input=(coeff_dist, var_dist), n=5)
+    terms = tf.produce_n(data=(coeff_dist, var_dist), number_of_things=5)
 
     dgs = DataGenerationStrategy(terms=terms, 
                                 target_fct=additive_target_fct, 

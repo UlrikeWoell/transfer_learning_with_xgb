@@ -1,18 +1,28 @@
-import itertools as it
+"""AbstractFactory to produce 1, n of the same, or n different objects"""
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from functools import partial
-from typing import Callable, List, Literal
+from src.util.logger import log_debug
 
-@dataclass
+
 class AbstractFactory(ABC):
+    """Produces things
+    """
+
     @abstractmethod
-    def produce_one(self, input:object):
-        ...
+    def produce_one(self, data:object):
+        """
+        Produces exactly one thing
+        """
 
-    def produce_from_list(self, input_list: list):
-        return[self.produce_one(line) for line in input_list]
+    def produce_from_list(self, data_list: list):
+        """
+        Produces one thing for each entry in input list.
+        """
+        log_debug(f'produce_from_list: {data_list}')
+        return[self.produce_one(line) for line in data_list]
 
-    def produce_n(self, input: object, n: int):
-        input_list = [input for i in range(n)]
-        return self.produce_from_list(input_list)
+    def produce_n(self, data: object, number_of_things: int):
+        """
+        Produce the same thing n times
+        """
+        log_debug(f'produce_n with n={number_of_things}: {data}')
+        return [self.produce_one(data) for i in range(number_of_things)]
