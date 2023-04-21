@@ -1,0 +1,44 @@
+---
+  LOGGING:
+    general_logfile: general.log
+    log_level: debug
+
+
+  DATA_HANDLING:
+    data_root_folder : data
+  
+  GLOBAL_SEED: 1
+
+
+  GRIDSEARCH_CONFIG:
+    cv: 5
+    param_grid: {
+      learning_rate: [0.02],
+      n_estimators: [600],
+      min_child_weight: [1, 5, 10],
+      gamma: [0.5, 1, 1.5],
+      subsample: [0.6],
+      colsample_bytree: [0.6, 0.8, 1.0],
+      max_depth: [3, 4, 5]
+    }
+
+  RANDOMIZED_SEARCH_CONFIG:
+    random_state: 1001
+    cv: 2
+    n_iter: 100
+    error_score: raise
+    param_distributions:
+      objective: [binary:logistic]
+      learning_rate: !FUNC beta(2,8)
+      n_estimators: [200]
+      min_child_weight: [1, 5, 10]
+      gamma: !FUNC uniform(0, 10)
+      subsample: [0.6, 0.7, 0.8]
+      colsample_bytree: [0.6, 0.8, 1.0]
+      max_depth: [1,2,3,4,5,6]
+        
+    
+
+  XGB_STANDARD_CONFIG:
+    verbosity: 1
+    nthread: -1
