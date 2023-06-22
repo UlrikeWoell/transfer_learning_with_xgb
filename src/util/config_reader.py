@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Literal
+from typing import Literal, Dict, Any
 import yaml
 from yaml.loader import SafeLoader
 import scipy
@@ -21,12 +21,12 @@ MyLoader.add_constructor('!FUNC', func_reader)
 @dataclass
 class Configuration:
     option: Literal["DEV", "FINAL"] = field(default="DEV")
-    data: dict = field(default=dict)
+    data: Dict[str,Any] = field(default=dict)
 
     def __post_init__(self):
         self.data = self.parse_config(key = self.option)
  
-    def parse_config(self, key):
+    def parse_config(self, key:str):
         if key == "DEV":
             with open('src/dev_config.yml') as f:
                 return yaml.load(f, Loader=MyLoader)
@@ -34,7 +34,7 @@ class Configuration:
             with open('src/final_config.yml') as f:
                 return yaml.load(f, Loader=MyLoader)
     
-    def get(self) -> dict:
+    def get(self) -> Dict[str,Any]:
         return self.data
     
 
