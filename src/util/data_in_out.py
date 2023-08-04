@@ -1,11 +1,7 @@
 from pathlib import Path
-
 from src.util.config_reader import Configuration
 from pandas import DataFrame, read_csv
 import shutil
- 
-
-
 
 def write_data(data: DataFrame, filepath:str):
     c = Configuration().get()

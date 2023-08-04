@@ -5,35 +5,25 @@ from pprint import pprint
 from random import choices, randint, random, sample, seed, uniform
 from typing import Any, Callable, List, Tuple
 
+from domain_parameters import Term, InteractionTerm
+
 import numpy as np
 import pandas as pd
 import polars as pl
 
 
 @dataclass
-class Term:
-    coefficient: float
-    var_name: str
-
-
-@dataclass
-class InteractionTerm:
-    coefficient: float
-    var_name_1: str
-    var_name_2: str
-
-
-@dataclass
 class Domain:
     domain_seed: int
     base_feature_count: int
-    base_features: List[Term] = field(default_factory=list, init=False)
-    censored_features: List[Term] = field(default_factory=list, init=False)
-    feature_covariance: np.ndarray[Any, Any] = field(init=False)
-    interactions: List[InteractionTerm] = field(default_factory=list, init=False)
+    base_features: List[Term] = field(default_factory=list, init=False, repr=False)
+    censored_features: List[Term] = field(default_factory=list, init=False, repr=False)
+    feature_covariance: np.ndarray[Any, Any] = field(init=False, repr=False)
+    interactions: List[InteractionTerm] = field(
+        default_factory=list, init=False, repr=False
+    )
     noise_variance: float = field(init=False)
     bernoulli_bias: float = field(init=False)
-    use_copula: bool = field(init=False)
     power_transformation: float = field(init=False)
 
     def __post_init__(self):
@@ -219,7 +209,11 @@ class Domain:
         mean_vector = [0] * self.base_feature_count
 
         data = rng.multivariate_normal(
-            mean=mean_vector, cov=self.feature_covariance, size=n
+            mean=mean_vector,
+            cov=self.feature_covariance,
+            size=n,
+            check_valid="ignore",
+            tol=0.01,
         )
         feature_names = [feat.var_name for feat in self.base_features]
         df = pl.from_numpy(data, schema=feature_names, orient="row")
@@ -284,12 +278,6 @@ class DomainChanger:
                     new_matrix[j][i] = new
         new_matrix = np.array(new_matrix)
         domain.feature_covariance = new_matrix
-        return domain
-
-    @staticmethod
-    def change_generate_X(domain: Domain) -> Domain:
-        """non-inductive transfer problems"""
-        raise NotImplementedError
         return domain
 
     @staticmethod
@@ -399,21 +387,8 @@ class DomainChanger:
         return domain
 
     @staticmethod
-    def change_to_copula(domain: Domain) -> Domain:
-        domain.use_copula = True
-        return domain
-
-    @staticmethod
-    def change_transformation(domain: Domain, power: float) -> Domain:
+    def change_power_transformation(domain: Domain, power: float) -> Domain:
         domain.power_transformation = power
         return domain
 
 
-ooo = DomainChanger()
-
-orig = Domain(domain_seed=1, base_feature_count=3)
-chan = Domain(domain_seed=1, base_feature_count=3)
-chan = ooo.change_transformation(domain=chan, power=1)
-
-Xo, yo = orig.generate_data(n=300, sample_seed=354)
-Xc, yc = chan.generate_data(n=300, sample_seed=354)

@@ -1,2 +1,0 @@
-Task(task_name='one', data_generation_strategy=DataGenerationStrategy(target_fct=<function additive_target_fct at 0x10331c5e0>, link_fct=<function logit_random_link_fct at 0x12dc9fb00>), train_size=10, test_size=10)
-Task(task_name='one', data_generation_strategy=DataGenerationStrategy(target_fct=<function additive_target_fct at 0x10331c5e0>, link_fct=<function logit_random_link_fct at 0x12dc9fb00>), train_size=10, test_size=10)
