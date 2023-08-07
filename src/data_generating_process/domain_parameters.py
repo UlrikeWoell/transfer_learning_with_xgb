@@ -50,24 +50,25 @@ class CensoredVariables:
 
 @dataclass
 class RndCensoredVariables(RndParameter):
-    size: int
     seed: int
-    available_variables: List[str]
+    censored_size: int
+    total_size: int
     censored__variables: List[str] = field(init=False, default_factory=list)
 
     @classmethod
-    def generate(
-        cls, seed: int, size: int, available_variables: List[str]
-    ) -> List[str]:
-        np.random.seed(seed)
+    def generate(cls, seed: int, censored_size: int, total_size: int) -> List[str]:
+        available_vars = BaseVariableNames(total_size).base_var_names
+        np.random.seed(seed + 2365)
         censored = np.random.choice(
-            available_variables, size=size, replace=False
+            available_vars, size=int(censored_size), replace=False
         ).tolist()
         return censored
 
     def __post_init__(self):
         self.censored__variables = RndCensoredVariables.generate(
-            seed=self.seed, size=self.size, available_variables=self.available_variables
+            seed=self.seed,
+            censored_size=self.censored_size,
+            total_size=self.total_size,
         )
 
 
@@ -117,7 +118,7 @@ class RndCoefficients(RndParameter):
         upper_bound: float,
         prob_of_zero: float,
     ) -> List[float]:
-        np.random.seed(seed)
+        np.random.seed(seed + 568)
         zeros = np.random.choice([0, 1], p=[prob_of_zero, 1 - prob_of_zero], size=size)
         coefficients = np.random.uniform(lower_bound, upper_bound, size=size)
         coefficients = coefficients * zeros
@@ -150,7 +151,7 @@ class RndCorrellationMatrix(RndParameter):
 
     @classmethod
     def generate(cls, size: int, seed: int) -> np.ndarray:
-        np.random.seed(seed)
+        np.random.seed(seed + 546783)
         matrix = np.random.uniform(-1, 1, size=(size, size))
         matrix = (matrix + matrix.T) / 2  # Make the matrix symmetrical
         # Create a positive semidefinite matrix
@@ -180,8 +181,8 @@ class RndBernoulliBias(RndParameter):
 
     @classmethod
     def generate(cls, seed: int) -> float:
-        np.random.seed(seed)
-        bias = np.random.uniform(-0.5, 0.5)
+        np.random.seed(seed + 456789)
+        bias = np.random.uniform(-0.2, 0.2)
         return bias
 
     def __post_init__(self):
@@ -200,8 +201,8 @@ class RndTransformationExponent(RndParameter):
 
     @classmethod
     def generate(cls, seed: int) -> float:
-        np.random.seed(seed)
-        exponent = np.random.uniform(-2, 2)
+        np.random.seed(seed + 6790)
+        exponent = np.random.uniform(0.5, 2)
         return exponent
 
     def __post_init__(self):

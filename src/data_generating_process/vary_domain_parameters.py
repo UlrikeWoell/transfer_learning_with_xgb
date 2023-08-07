@@ -7,9 +7,5 @@ from src.data_generating_process.domain_parameters import (
 from src.data_generating_process.domainV2 import (
     Domain,
     DomainGenerator,
-    DomainParameterSet,
+    DomainParameters,
 )
-
-
-
-

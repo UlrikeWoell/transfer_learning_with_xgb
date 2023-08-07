@@ -5,7 +5,9 @@ from typing import Any, Dict, List, Tuple
 import numpy as np
 import pandas as pd
 import polars as pl
-from domain_parameters import (
+from more_itertools import first_true
+
+from src.data_generating_process.domain_parameters import (
     BaseVariableNames,
     BernoulliBias,
     CensoredVariables,
@@ -19,7 +21,6 @@ from domain_parameters import (
     RndTransformationExponent,
     TransformationExponent,
 )
-from more_itertools import first_true
 
 
 @dataclass
@@ -72,12 +73,12 @@ class Domain:
 
 
 @dataclass
-class Sample:
+class SamplingParameters:
     n: int
     seed: int
 
 
-class SampleGenerator:
+class DomainSampler:
     @staticmethod
     def generate_X(domain: Domain, n: int, sample_seed: int) -> pl.DataFrame:
         rng = np.random.default_rng(seed=sample_seed)
@@ -185,21 +186,21 @@ class SampleGenerator:
         return X_class
 
     def generate_y(domain: Domain, X: pl.DataFrame, sample_seed: int) -> pl.DataFrame:
-        X_agg = SampleGenerator.aggregate(domain=domain, X=X)
-        X_link = SampleGenerator.sigmoid_link(X=X_agg)
-        X_class = SampleGenerator.bernoulli_label(
+        X_agg = DomainSampler.aggregate(domain=domain, X=X)
+        X_link = DomainSampler.sigmoid_link(X=X_agg)
+        X_class = DomainSampler.bernoulli_label(
             domain=domain, X=X_link, sample_seed=sample_seed
         )
         return X_class
 
     @staticmethod
-    def generate_data(domain: Domain, sample: Sample) -> pd.DataFrame:
+    def generate_data(domain: Domain, sample: SamplingParameters) -> pd.DataFrame:
         n = sample.n
         sample_seed = sample.seed
-        X = SampleGenerator.generate_X(domain=domain, n=n, sample_seed=sample_seed)
-        X = SampleGenerator.transform_data(domain=domain, X=X)
-        y = SampleGenerator.generate_y(domain=domain, X=X, sample_seed=sample_seed)
-        X = SampleGenerator.censor_data(domain=domain, X=X)
+        X = DomainSampler.generate_X(domain=domain, n=n, sample_seed=sample_seed)
+        X = DomainSampler.transform_data(domain=domain, X=X)
+        y = DomainSampler.generate_y(domain=domain, X=X, sample_seed=sample_seed)
+        X = DomainSampler.censor_data(domain=domain, X=X)
 
         result = X.to_pandas()
         result["y"] = y.select(pl.col("class")).to_pandas()
@@ -217,7 +218,11 @@ class SampleGenerator:
 
 
 @dataclass
-class DomainParameterSet:
+class DomainParameters:
+    """Specifies the paramaters of a Domain.
+    DomainGenerator class uses the DomainParameters class to generate the described domain.
+    """
+
     base_coeff_cnt: int
     base_variable_names: BaseVariableNames = field(init=False)
     intr_variable_names: InteractionVariableNames = field(init=False)
@@ -244,7 +249,7 @@ class DomainParameterSet:
 
 class DomainGenerator:
     @staticmethod
-    def get_base_values(params: DomainParameterSet):
+    def get_base_values(params: DomainParameters):
         return (
             params.base_coeff_cnt,
             params.base_variable_names,
@@ -252,7 +257,7 @@ class DomainGenerator:
         )
 
     @staticmethod
-    def get_correllation_matrix(params: DomainParameterSet, seed: int):
+    def get_correllation_matrix(params: DomainParameters, seed: int):
         return first_true(
             [
                 params.correllation_matrix,
@@ -262,9 +267,9 @@ class DomainGenerator:
         )
 
     @staticmethod
-    def get_base_coefficients(params: DomainParameterSet, seed: int):
+    def get_base_coefficients(params: DomainParameters, seed: int):
         base_coefficients_prob_of_zero = first_true(
-            [params.base_coefficients_prob_of_zero, 0.0],
+            [params.base_coefficients_prob_of_zero, 0.8],
             pred=lambda x: x is not None,
         )
         return first_true(
@@ -280,9 +285,9 @@ class DomainGenerator:
         )
 
     @staticmethod
-    def get_intr_coefficients(params: DomainParameterSet, seed: int):
+    def get_intr_coefficients(params: DomainParameters, seed: int):
         intr_coefficients_prob_of_zero = first_true(
-            [params.intr_coefficients_prob_of_zero, 0.90],
+            [params.intr_coefficients_prob_of_zero, 0.50],
             pred=lambda x: x is not None,
         )
         return first_true(
@@ -298,37 +303,38 @@ class DomainGenerator:
         )
 
     @staticmethod
-    def get_censored_variables(params: DomainParameterSet, seed: int):
+    def get_censored_variables(params: DomainParameters, seed: int):
         number_of_censored_variables = first_true(
-            [params.number_of_censored_variables, 0], pred=lambda x: x is not None
+            [params.number_of_censored_variables, 0.2 * params.base_coeff_cnt],
+            pred=lambda x: x is not None,
         )
         return first_true(
             [
                 params.censored_variables,
                 RndCensoredVariables(
                     seed=seed,
-                    size=number_of_censored_variables,
-                    available_variables=params.base_variable_names.base_var_names,
+                    censored_size=number_of_censored_variables,
+                    total_size=params.base_coeff_cnt,
                 ),
             ],
             pred=lambda x: x is not None,
         )
 
     @staticmethod
-    def get_bias(params: DomainParameterSet, seed: int):
+    def get_bias(params: DomainParameters, seed: int):
         return first_true(
             [params.bias, RndBernoulliBias(seed=seed)], pred=lambda x: x is not None
         )
 
     @staticmethod
-    def get_transformation_exponent(params: DomainParameterSet, seed: int):
+    def get_transformation_exponent(params: DomainParameters, seed: int):
         return first_true(
             [params.transformation_exponent, RndTransformationExponent(seed=seed)],
             pred=lambda x: x is not None,
         )
 
     @classmethod
-    def get_domain(cls, params: DomainParameterSet, seed: int):
+    def get_domain(cls, params: DomainParameters, seed: int):
         base_coeff_cnt, base_variable_names, intr_variable_names = cls.get_base_values(
             params
         )
@@ -359,7 +365,7 @@ class DomainGenerator:
         list_of_domains = {}
         for v in values:
             bias = BernoulliBias(v)
-            dps = DomainParameterSet(base_coeff_cnt=base_coeff_cnt, bias=bias)
+            dps = DomainParameters(base_coeff_cnt=base_coeff_cnt, bias=bias)
             dom = cls.get_domain(dps, default_seed)
             list_of_domains[v] = dom
         return list_of_domains
@@ -371,7 +377,7 @@ class DomainGenerator:
         list_of_domains = {}
         for v in values:
             exponent = TransformationExponent(v)
-            dps = DomainParameterSet(
+            dps = DomainParameters(
                 base_coeff_cnt=base_coeff_cnt, transformation_exponent=exponent
             )
             dom = cls.get_domain(dps, default_seed)
@@ -385,7 +391,7 @@ class DomainGenerator:
         list_of_domains = {}
         for seed in matrix_seeds:
             correllation_matrix = RndCorrellationMatrix(size=base_coeff_cnt, seed=seed)
-            dps = DomainParameterSet(
+            dps = DomainParameters(
                 base_coeff_cnt=base_coeff_cnt, correllation_matrix=correllation_matrix
             )
             dom = cls.get_domain(dps, default_seed)
@@ -396,11 +402,9 @@ class DomainGenerator:
     def vary_coefficients(
         cls, base_coeff_cnt: int, coeff_seeds: List[int], default_seed: int
     ) -> Dict[int, Domain]:
-        
-        #calc number of Interactions
+        # calc number of Interactions
         vars = InteractionVariableNames(base_coeff_cnt)
         intr_coeff_cnt = len(vars.intr_joint_name)
-
 
         list_of_domains = {}
         for seed in coeff_seeds:
@@ -410,7 +414,7 @@ class DomainGenerator:
             intr_coeffs = RndCoefficients(
                 size=intr_coeff_cnt, seed=seed + 1, prob_of_zero=0.9
             )
-            dps = DomainParameterSet(
+            dps = DomainParameters(
                 base_coeff_cnt=base_coeff_cnt,
                 base_coefficients=base_coeffs,
                 intr_coefficients=intr_coeffs,
@@ -418,10 +422,3 @@ class DomainGenerator:
             dom = cls.get_domain(dps, default_seed)
             list_of_domains[seed] = dom
         return list_of_domains
-
-
-values = [0.1, 0.2, 0.3]
-seeds = [27011990, 12061984]
-
-domains = DomainGenerator.vary_coefficients(3, seeds, 111)
-pprint(domains)
