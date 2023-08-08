@@ -114,13 +114,13 @@ class RndCoefficients(RndParameter):
         cls,
         size: int,
         seed: int,
-        lower_bound: float,
-        upper_bound: float,
+        lower_bound: int,
+        upper_bound: int,
         prob_of_zero: float,
     ) -> List[float]:
         np.random.seed(seed + 568)
         zeros = np.random.choice([0, 1], p=[prob_of_zero, 1 - prob_of_zero], size=size)
-        coefficients = np.random.uniform(lower_bound, upper_bound, size=size)
+        coefficients = np.random.randint(lower_bound, upper_bound, size=size)
         coefficients = coefficients * zeros
         return coefficients.tolist()
 
