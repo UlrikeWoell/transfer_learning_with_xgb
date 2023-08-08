@@ -1,8 +1,12 @@
 import math
 import os
 
-from src.anlaytics.study.dgp import SimpleDGP, TransferDGP
-from src.anlaytics.study.viz_example_data import PairPlotMaker, PlotCombiner
+from src.anlaytics.study.illustration_of_datasets.SimpleDGP import SimpleDGP
+from src.anlaytics.study.illustration_of_datasets.viz_example_data import (
+    PairPlotMaker,
+    PlotCombiner,
+)
+from src.anlaytics.study.simulation_data.TransferDGP import TransferDGP
 from src.data_generating_process.domain_parameters import (
     BernoulliBias,
     RndCensoredVariables,
