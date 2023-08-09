@@ -2,7 +2,6 @@ import os
 from dataclasses import dataclass, field
 
 from src.xgboost_training.data_loader import DataLoader
-from src.xgboost_training.result_aggregator import ResultAggregator
 from src.xgboost_training.xgboost_tuner import XGBoostTuner, XGBoostTunerConfig
 
 
@@ -32,7 +31,6 @@ class TuningRoutine:
 
         """
         tuner_config = XGBoostTunerConfig()
-        aggregator = ResultAggregator(self.output_file)
 
         for folder_name in sorted(os.listdir(self.data_dir)):
             print(folder_name)
@@ -58,13 +56,11 @@ class TuningRoutine:
                         file_name=self.tuning_result_file_name,
                         tuning_results=tuning_results,
                     )
-                    aggregator.add_result(folder_name, tuning_results)
-                except Exception as e:
-                    print(f"Error processing folder {folder_name}: {str(e)}")
+
+                except Exception as ex:
+                    print(f"Error processing folder {folder_name}: {str(ex)}")
                     tuner.save_failed_result_to_json(
                         file_path=path,
                         file_name=self.tuning_result_file_name,
-                        msg=str(e),
+                        msg=str(ex),
                     )
-
-        aggregator.save_results()

@@ -2,7 +2,7 @@ import math
 import os
 from pprint import pprint
 
-from src.anlaytics.study.simulation_data.TransferDGP import TransferDGP
+from src.anlaytics.study.simulate_transfer_strategies.TransferDGP import TransferDGP
 from src.data_generating_process.domain_parameters import (
     RndBernoulliBias,
     RndCensoredVariables,
