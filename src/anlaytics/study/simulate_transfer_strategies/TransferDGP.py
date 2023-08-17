@@ -102,7 +102,7 @@ class TransferDGP:
         for x in ["src", "tgt"]:
             for y in ["train", "test"]:
                 sp = SamplingParameters(
-                    sample_sizes[f"{x}_train"], sample_seeds[f"{x}_{y}"]
+                    sample_sizes[f"{x}_{y}"], sample_seeds[f"{x}_{y}"]
                 )
                 data = DataSetMaker.make_dataset(
                     domain=domains[x], sample=sp, name=f"{x}_{y}"

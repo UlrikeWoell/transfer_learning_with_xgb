@@ -1,4 +1,4 @@
-from src.xgboost_training.tuning_routine import (
+from src.xgboost_training.traditional_training_routine import (
     TuningRoutine,
     TuningRoutineConfiguration,
 )

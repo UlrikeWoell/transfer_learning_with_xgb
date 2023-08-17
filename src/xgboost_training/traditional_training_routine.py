@@ -1,8 +1,8 @@
 import os
 from dataclasses import dataclass, field
 
-from src.xgboost_training.data_loader import DataLoader
-from src.xgboost_training.xgboost_tuner import XGBoostTuner, XGBoostTunerConfig
+from src.xgboost_training.data_loader import SimpleDataLoader
+from src.xgboost_training.xgboost_tuner import DefaultXGBoostTunerConfig, XGBoostTuner
 
 
 @dataclass
@@ -30,13 +30,13 @@ class TuningRoutine:
         All test files must have identical names.
 
         """
-        tuner_config = XGBoostTunerConfig()
+        tuner_config = DefaultXGBoostTunerConfig
 
         for folder_name in sorted(os.listdir(self.data_dir)):
             print(folder_name)
             if os.path.isdir(os.path.join(self.data_dir, folder_name)):
                 path = f"{self.data_dir}/{folder_name}"
-                loader = DataLoader(
+                loader = SimpleDataLoader(
                     file_path=path,
                     test_file_name=self.test_file,
                     train_file_name=self.train_file,
@@ -45,7 +45,7 @@ class TuningRoutine:
 
                 try:
                     data = loader.load_data()
-                    tuning_results = tuner.tune_model(
+                    tuning_results, _ = tuner.tune_model(
                         X_train=data["X_train"],
                         y_train=data["y_train"],
                         X_test=data["X_test"],

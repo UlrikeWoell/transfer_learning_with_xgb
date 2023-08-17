@@ -152,7 +152,7 @@ class RndCorrellationMatrix(RndParameter):
     @classmethod
     def generate(cls, size: int, seed: int) -> np.ndarray:
         np.random.seed(seed + 546783)
-        matrix = np.random.uniform(-1, 1, size=(size, size))
+        matrix = np.random.uniform(0, 0.5, size=(size, size))
         matrix = (matrix + matrix.T) / 2  # Make the matrix symmetrical
         # Create a positive semidefinite matrix
         w, v = np.linalg.eigh(matrix)
