@@ -56,10 +56,11 @@ class TransferDGP:
     def get_unique_name(self):
         """Utility method to make a name for files or folders
         from the current timestamp and a random number"""
+
         return "_".join(
             [
-                datetime.datetime.now().strftime("%m%d%H%M%S%s"),
                 str(random.randint(100, 999)),
+                datetime.datetime.now().strftime("%m%d%H%M%S%s"),
             ]
         )
 
@@ -69,8 +70,12 @@ class TransferDGP:
     def _get_domains(self) -> dict[str, Domain]:
         domain_seed = self._get_domain_seeds()
         return {
-            "src": DomainGenerator().get_domain(self.src_fixed_parameters, domain_seed),
-            "tgt": DomainGenerator().get_domain(self.tgt_fixed_parameters, domain_seed),
+            "src": DomainGenerator().get_domain(
+                self.src_fixed_parameters, domain_seed, matrix_same_sign=True
+            ),
+            "tgt": DomainGenerator().get_domain(
+                self.tgt_fixed_parameters, domain_seed, matrix_same_sign=True
+            ),
         }
 
     def _get_sample_seeds(self) -> dict[str, int]:
@@ -99,13 +104,20 @@ class TransferDGP:
         sample_seeds = self._get_sample_seeds()
 
         filepath = self._get_file_path()
+        datasets = []
         for x in ["src", "tgt"]:
             for y in ["train", "test"]:
                 sp = SamplingParameters(
                     sample_sizes[f"{x}_{y}"], sample_seeds[f"{x}_{y}"]
                 )
-                data = DataSetMaker.make_dataset(
+                dataset = DataSetMaker.make_dataset(
                     domain=domains[x], sample=sp, name=f"{x}_{y}"
                 )
+                if (0 in dataset.data["y"].values) and (1 in dataset.data["y"].values):
+                    datasets.append(dataset)
 
+        if len(datasets) == 4:
+            for data in datasets:
                 DataSetMaker.materialize_dataset(dataset=data, filepath=filepath)
+        else:
+            print("invalid dataset")

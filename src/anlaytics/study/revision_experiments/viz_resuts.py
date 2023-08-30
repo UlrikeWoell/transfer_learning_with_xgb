@@ -22,9 +22,9 @@ class DataCollector:
         except:
             print(f"No such file: {file}")
 
-    def revision_result_to_row(self, scenario: str, experiment: str):
+    def finetuning_result_to_row(self, scenario: str, experiment: str):
         data = self.read_json(
-            f"{self.root_dir}/{scenario}/{experiment}/revision_result.json"
+            f"{self.root_dir}/{scenario}/{experiment}/finetuning_result.json"
         )
         row = {
             "strategy": "Revision",
@@ -41,8 +41,8 @@ class DataCollector:
             )
         return row
 
-    def collect_revision_apr_data(self, scenario: str, experiment: str):
-        revision_options = [
+    def collect_finetuning_apr_data(self, scenario: str, experiment: str):
+        finetuning_options = [
             [False, False, False],
             [False, False, True],
             [False, True, False],
@@ -54,8 +54,8 @@ class DataCollector:
         ]
         rows = []
 
-        for ro in revision_options:
-            filename = f"revision_result_a{str(ro[0])}_p{str(ro[1])}_r{str(ro[2])}.json"
+        for ro in finetuning_options:
+            filename = f"finetuning_result_a{str(ro[0])}_p{str(ro[1])}_r{str(ro[2])}.json"
             strategy = f"a{str(ro[0])}_p{str(ro[1])}_r{str(ro[2])}"
 
             data = self.read_json(f"{self.root_dir}/{scenario}/{experiment}/{filename}")
@@ -81,13 +81,13 @@ class DataCollector:
             rows.append(row)
         return rows
 
-    def collect_all_experiments_revision_apr(self):
+    def collect_all_experiments_finetuning_apr(self):
         data = []
         scenarios = os.listdir(self.root_dir)
         for s in scenarios:
             experiments = os.listdir(f"{self.root_dir}/{s}")
             for e in experiments:
-                data = data + self.collect_revision_apr_data(s, e)
+                data = data + self.collect_finetuning_apr_data(s, e)
         return pd.DataFrame(data)
 
 
@@ -124,7 +124,7 @@ class Plotter:
         plt.show()
 
 
-data = DataCollector().collect_all_experiments_revision_apr()
+data = DataCollector().collect_all_experiments_finetuning_apr()
 print(data)
 
 Plotter().make_stripplots(data)

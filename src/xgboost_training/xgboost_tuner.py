@@ -68,8 +68,14 @@ class XGBoostTuner:
             cv=self.cv,
             n_jobs=-1,
         )
-
-        random_search.fit(X_train, y_train, sample_weight=sample_weight)
+        
+        try:
+            random_search.fit(X_train, y_train, sample_weight=sample_weight)
+        except Exception as excep: 
+            print(excep)
+            tuning_results = {"success": False, "msg": excep}
+            return tuning_results
+        
         model = random_search.best_estimator_
 
         metrics = self.calculate_metrics(random_search.best_estimator_, X_test, y_test)
@@ -87,6 +93,7 @@ class XGBoostTuner:
         tuning_results.update(metrics)
 
         return tuning_results, model
+        
 
     def get_param_dist(self):
         param_dist = {
@@ -108,7 +115,7 @@ class XGBoostTuner:
 
         return model
 
-    def tune_continuation_model(
+    def tune_freeze_model(
         self,
         X_train_1: pd.DataFrame,
         y_train_1: pd.DataFrame,
@@ -123,12 +130,12 @@ class XGBoostTuner:
         best_params = tuning_result["best_estimator_params"]
         t0 = best_params["n_estimators"]
 
-        swap_after_n_trees = [round(i * t0) for i in [0, 0.2, 0.4, 0.6, 0.8, 1]]
+        freeze_n_trees = [round(i * t0) for i in [0, 0.2, 0.4, 0.6, 0.8, 1]]
         best_score = 0
         best_swap_time = None
         best_metrics = None
 
-        for swap_time in swap_after_n_trees:
+        for swap_time in freeze_n_trees:
             model = xgb.XGBClassifier(**best_params)
             model.set_params(n_estimators=swap_time)
             model.fit(X_train_1, y_train_1)
@@ -155,7 +162,7 @@ class XGBoostTuner:
 
         return tuning_results
 
-    def tune_continuation_model_early_stopping(
+    def tune_progressive_model(
         self,
         X_train_1: pd.DataFrame,
         y_train_1: pd.DataFrame,
@@ -168,7 +175,7 @@ class XGBoostTuner:
             X_train=X_train_1, y_train=y_train_1, X_test=X_test, y_test=y_test
         )
         best_params = tuning_result["best_estimator_params"]
-        eval_set = [(X_train_1,y_train_1),(X_test, y_test)]
+        eval_set = [(X_train_1, y_train_1), (X_test, y_test)]
 
         model = xgb.XGBClassifier(**best_params)
         model.set_params(
@@ -176,12 +183,7 @@ class XGBoostTuner:
             eval_metric="logloss",
         )
 
-        model.fit(
-            X_train_1,
-            y_train_1,
-            eval_set=eval_set,
-            verbose = False
-        )
+        model.fit(X_train_1, y_train_1, eval_set=eval_set, verbose=False)
         step1_parameters = model.get_params()
         new_eta = 0.75 * model.get_params()["learning_rate"]
         new_n_estimators = round(2 * model.get_params()["n_estimators"])
@@ -192,7 +194,7 @@ class XGBoostTuner:
             y_train_2,
             eval_set=eval_set,
             xgb_model=model.get_booster(),
-            verbose = False
+            verbose=False,
         )
         step2_parameters = model.get_params()
 
@@ -208,7 +210,7 @@ class XGBoostTuner:
 
         return tuning_results
 
-    def tune_revision_model(
+    def tune_finetuned_model(
         self,
         X_train_src: pd.DataFrame,
         y_train_src: pd.DataFrame,
@@ -265,11 +267,14 @@ class XGBoostTuner:
 
         metrics = self.calculate_metrics(
             model=reweighted_model, X_test=X_test_tgt, y_test=y_test_tgt
-        )
+        ) 
         tuning_results = {
             "success": True,
             "msg": None,
-            "best_params": reweighted_model.get_params(),
+            "best_params": reweighted_model.get_params() if reweighted_model else {},
+            "prune": prune,
+            "reweight": reweight,
+            "augment": augment,
             "pruning_summary": pruning_summary,
         }
 
@@ -336,7 +341,7 @@ class XGBoostTuner:
                     extra_samples_needed = min_leaf_cnt - count
 
                     if extra_samples_needed > 0:
-                        selected_indices = src_leaf_indices[:, tree_idx] == leaf_idx
+                        selected_indices = src_leaf_indices_tree == leaf_idx
                         same_leaf = src[selected_indices]
 
                         if len(same_leaf) > 0:
@@ -445,7 +450,6 @@ class XGBoostTuner:
         self, model: xgb.XGBClassifier, X_test: pd.DataFrame, y_test: pd.DataFrame
     ) -> Dict[str, float]:
         y_pred_proba = model.predict_proba(X_test)[:, 1]
-        y_pred = model.predict(X_test)
 
         try:
             auc_roc = roc_auc_score(y_test, y_pred_proba)
@@ -455,12 +459,8 @@ class XGBoostTuner:
             auc_pr = average_precision_score(y_test, y_pred_proba)
         except:
             auc_pr = None
-        try:
-            f1 = f1_score(y_test, y_pred)
-        except:
-            f1 = None
 
-        return {"auc_roc": auc_roc, "auc_pr": auc_pr, "f1": f1}
+        return {"auc_roc": auc_roc, "auc_pr": auc_pr}
 
     def save_results_to_json(
         self, file_path: str, file_name: str, tuning_results: Dict[str, Any]

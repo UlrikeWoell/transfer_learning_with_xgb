@@ -257,11 +257,13 @@ class DomainGenerator:
         )
 
     @staticmethod
-    def get_correllation_matrix(params: DomainParameters, seed: int):
+    def get_correllation_matrix(params: DomainParameters, seed: int, same_sign: bool):
         return first_true(
             [
                 params.correllation_matrix,
-                RndCorrellationMatrix(params.base_coeff_cnt, seed=seed),
+                RndCorrellationMatrix(
+                    params.base_coeff_cnt, seed=seed, same_sign=same_sign
+                ),
             ],
             pred=lambda x: x is not None,
         )
@@ -279,6 +281,7 @@ class DomainGenerator:
                     size=params.base_coeff_cnt,
                     seed=seed,
                     prob_of_zero=base_coefficients_prob_of_zero,
+                    same_sign=True
                 ),
             ],
             pred=lambda x: x is not None,
@@ -297,6 +300,7 @@ class DomainGenerator:
                     size=len(params.intr_variable_names.intr_joint_name),
                     seed=seed,
                     prob_of_zero=intr_coefficients_prob_of_zero,
+                    same_sign=True
                 ),
             ],
             pred=lambda x: x is not None,
@@ -334,11 +338,13 @@ class DomainGenerator:
         )
 
     @classmethod
-    def get_domain(cls, params: DomainParameters, seed: int):
+    def get_domain(cls, params: DomainParameters, seed: int, matrix_same_sign: bool):
         base_coeff_cnt, base_variable_names, intr_variable_names = cls.get_base_values(
             params
         )
-        correllation_matrix = cls.get_correllation_matrix(params, seed)
+        correllation_matrix = cls.get_correllation_matrix(
+            params, seed, same_sign=matrix_same_sign
+        )
         base_coefficients = cls.get_base_coefficients(params, seed)
         intr_coefficients = cls.get_intr_coefficients(params, seed)
         bias = cls.get_bias(params, seed)

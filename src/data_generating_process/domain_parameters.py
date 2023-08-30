@@ -105,8 +105,8 @@ class RndCoefficients(RndParameter):
     size: int
     seed: int
     prob_of_zero: float
-    lower_bound: float = field(default=-10)
-    upper_bound: float = field(default=10)
+    same_sign: bool
+    value_range: float = field(default=10)
     coefficients: List[float] = field(init=False, repr=True, default_factory=list)
 
     @classmethod
@@ -114,11 +114,13 @@ class RndCoefficients(RndParameter):
         cls,
         size: int,
         seed: int,
-        lower_bound: int,
-        upper_bound: int,
+        same_sign: bool,
+        value_range: int,
         prob_of_zero: float,
     ) -> List[float]:
         np.random.seed(seed + 568)
+        upper_bound = value_range
+        lower_bound = 0 if same_sign else -value_range
         zeros = np.random.choice([0, 1], p=[prob_of_zero, 1 - prob_of_zero], size=size)
         coefficients = np.random.randint(lower_bound, upper_bound, size=size)
         coefficients = coefficients * zeros
@@ -128,8 +130,8 @@ class RndCoefficients(RndParameter):
         self.coefficients = RndCoefficients.generate(
             size=self.size,
             seed=self.seed,
-            lower_bound=self.lower_bound,
-            upper_bound=self.upper_bound,
+            same_sign=self.same_sign,
+            value_range=self.value_range,
             prob_of_zero=self.prob_of_zero,
         )
 
@@ -147,12 +149,17 @@ class CorrellationMatrix:
 class RndCorrellationMatrix(RndParameter):
     size: int
     seed: int
+    same_sign: bool
     matrix: np.ndarray = field(init=False, repr=True)
 
     @classmethod
-    def generate(cls, size: int, seed: int) -> np.ndarray:
+    def generate(cls, size: int, seed: int, same_sign: bool) -> np.ndarray:
         np.random.seed(seed + 546783)
-        matrix = np.random.uniform(0, 0.5, size=(size, size))
+
+        if same_sign:
+            matrix = np.random.uniform(0, 0.5, size=(size, size))
+        else:
+            matrix = np.random.uniform(-0.5, 0.5, size=(size, size))
         matrix = (matrix + matrix.T) / 2  # Make the matrix symmetrical
         # Create a positive semidefinite matrix
         w, v = np.linalg.eigh(matrix)
@@ -166,7 +173,9 @@ class RndCorrellationMatrix(RndParameter):
         return matrix
 
     def __post_init__(self):
-        self.matrix = RndCorrellationMatrix.generate(size=self.size, seed=self.seed)
+        self.matrix = RndCorrellationMatrix.generate(
+            size=self.size, seed=self.seed, same_sign=self.same_sign
+        )
 
 
 @dataclass
@@ -182,7 +191,7 @@ class RndBernoulliBias(RndParameter):
     @classmethod
     def generate(cls, seed: int) -> float:
         np.random.seed(seed + 456789)
-        bias = np.random.uniform(-0.2, 0.2)
+        bias = np.random.uniform(-0.3, 0.3)
         return bias
 
     def __post_init__(self):
