@@ -5,4 +5,5 @@
 *.pyc
 *.png
 *.json
+*.pdf
 /data
