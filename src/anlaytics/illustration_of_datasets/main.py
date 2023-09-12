@@ -1,20 +1,20 @@
 import math
 import os
 
-from src.anlaytics.study.illustration_of_datasets.SimpleDGP import SimpleDGP
-from src.anlaytics.study.illustration_of_datasets.viz_example_data import (
+from src.anlaytics.illustration_of_datasets.SimpleDGP import SimpleDGP
+from src.anlaytics.illustration_of_datasets.viz_example_data import (
     PairPlotMaker,
     PlotCombiner,
 )
-from src.anlaytics.study.simulation_data.TransferDGP import TransferDGP
+#from src.anlaytics.study.simulation_data.TransferDGP import TransferDGP
 from src.data_generating_process.domain_parameters import (
     BernoulliBias,
     RndCensoredVariables,
     RndCoefficients,
-    RndCorrellationMatrix,
+    RndCorrelationMatrix,
     TransformationExponent,
 )
-from src.data_generating_process.domainV2 import DomainGenerator, DomainParameters
+from src.data_generating_process.domain import DomainParameters
 
 
 class Illustrations:
@@ -27,7 +27,7 @@ class Illustrations:
 
     def get_matrices(self):
         fixed = [
-            RndCorrellationMatrix(self.base_coef_count, seed) for seed in self.rnd_seeds
+            RndCorrelationMatrix(self.base_coef_count, seed,same_sign=False,value_range=0.7) for seed in self.rnd_seeds
         ]
         parameters = [
             DomainParameters(base_coeff_cnt=self.base_coef_count, correllation_matrix=x)
@@ -64,13 +64,13 @@ class Illustrations:
 
     def get_coeffs(self):
         fixed_base = [
-            RndCoefficients(self.base_coef_count, i, prob_of_zero=0.5)
+            RndCoefficients(self.base_coef_count, i, prob_of_zero=0.5, same_sign=False)
             for i in self.rnd_seeds
         ]
 
         fixed_intr = [
             RndCoefficients(
-                math.comb(self.base_coef_count, 2), i + 45, prob_of_zero=0.5
+                math.comb(self.base_coef_count, 2), i + 45, prob_of_zero=0.5, same_sign=False
             )
             for i in self.rnd_seeds
         ]

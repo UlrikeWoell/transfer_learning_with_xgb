@@ -6,6 +6,13 @@ TARGET_ID = "y"
 
 
 class SimpleDataLoader:
+    """Loads 2 csv files for traditional ML problems:
+    - train.csv, 
+    - test.csv
+
+    Returns X and y separately for all files.
+    """
+
     def __init__(self, file_path: str, train_file_name: str, test_file_name: str):
         self.train_filepath = f"{file_path}/{train_file_name}"
         self.test_filepath = f"{file_path}/{test_file_name}"
@@ -65,7 +72,5 @@ class TransferDataLoader:
                 y = data[TARGET_ID]
                 prepared_data[f"{dom}_{subset}_X"] = X
                 prepared_data[f"{dom}_{subset}_y"] = y
-
+                
         return prepared_data
-    
-    

@@ -96,7 +96,7 @@ def make_plot():
         ax.text(
             x=2520,
             y=0.825,
-            s=f"NG={gain:.2f}",
+            s=f"NGL={gain:.2f}",
             color="black",
             verticalalignment="center",
             horizontalalignment="center",

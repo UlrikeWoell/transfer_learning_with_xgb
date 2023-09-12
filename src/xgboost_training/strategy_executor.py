@@ -5,10 +5,11 @@ from typing import Any, Dict, List, Tuple
 import pandas as pd
 
 from src.xgboost_training.data_loader import TransferDataLoader
-from src.xgboost_training.xgboost_tuner import DefaultXGBoostTunerConfig, XGBoostTuner
+from src.xgboost_training.xgboost_transfer_tuner import XGBoostTransferTuner
+from src.xgboost_training.xgboost_tuner_config import DefaultXGBoostTunerConfig
 
 
-class Strategy(ABC):
+class StrategyExecutor(ABC):
     def __init__(self, path: str) -> None:
         self.path = path
 
@@ -33,7 +34,7 @@ class Strategy(ABC):
 
     def setup_tuner(self):
         tuner_config = DefaultXGBoostTunerConfig
-        tuner = XGBoostTuner(tuner_config)
+        tuner = XGBoostTransferTuner(tuner_config)
         return tuner
 
     def save_results_to_json(self, tuning_results: Dict[str, Any]):
@@ -46,10 +47,10 @@ class Strategy(ABC):
         self.save_results_to_json(tuning_results=tuning_result)
 
 
-class TgtOnlyStrategy(Strategy):
+class TgtOnlyStrategyExecutor(StrategyExecutor):
     def execute(self) -> None:
         tuner = self.setup_tuner()
-        #try:
+        # try:
         data = self.load_data()
         tuning_results, _ = tuner.tune_model(
             X_train=data["tgt_train_X"],
@@ -59,18 +60,11 @@ class TgtOnlyStrategy(Strategy):
         )
         self.save_results_to_json(tuning_results)
 
-    #except Exception as ex:
-        """        print(f"Error processing folder {self.path}:\n {str(ex)}")
-        print(f"{str(self.__class__)} \n")
-        self.save_failed_result_to_json(
-            msg=str(ex),
-        )"""
-
     def result_path(self) -> str:
         return f"{self.path}/tgtonly_result.json"
 
 
-class SrcOnlyStrategy(Strategy):
+class SrcOnlyStrategyExecutor(StrategyExecutor):
     def execute(self) -> None:
         tuner = self.setup_tuner()
         try:
@@ -82,7 +76,6 @@ class SrcOnlyStrategy(Strategy):
                 y_test=data["tgt_test_y"],
             )
             self.save_results_to_json(tuning_results)
-        
 
         except Exception as ex:
             print(f"Error processing folder {self.path}:\n {str(ex)}")
@@ -94,21 +87,13 @@ class SrcOnlyStrategy(Strategy):
         return f"{self.path}/srconly_result.json"
 
 
-class CombinationStrategy(Strategy):
+class CombinationStrategyExecutor(StrategyExecutor):
     def execute(self) -> None:
         tuner = self.setup_tuner()
         try:
             data = self.load_data()
-            combined_data = self.combine_data(data)
-            tuning_results, _ = tuner.tune_model(
-                X_train=combined_data["train_X"],
-                y_train=combined_data["train_y"],
-                X_test=combined_data["test_X"],
-                y_test=combined_data["test_y"],
-                sample_weight=combined_data["weights"],
-            )
+            tuning_results = tuner.tune_combination_model(data)
             self.save_results_to_json(tuning_results)
-            
 
         except Exception as ex:
             print(f"Error processing folder {self.path}:\n {str(ex)}")
@@ -119,40 +104,8 @@ class CombinationStrategy(Strategy):
     def result_path(self) -> str:
         return f"{self.path}/combination_result.json"
 
-    def combine_data(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
-        src_X = data["src_train_X"]
-        src_y = data["src_train_y"]
-        tgt_X = data["tgt_train_X"]
-        tgt_y = data["tgt_train_y"]
 
-        test_X = data["tgt_test_X"]
-        test_y = data["tgt_test_y"]
-
-        # weights
-        src_n = src_X.shape[0]
-        tgt_n = tgt_X.shape[0]
-        tgt_weights = pd.DataFrame([src_n / tgt_n] * tgt_n)
-        src_weights = pd.DataFrame([1] * src_n)
-        weights = pd.concat([src_weights, tgt_weights])
-
-        # New feature: Data origin
-        src_X["from_tgt"] = False
-        tgt_X["from_tgt"] = True
-        test_X["from_tgt"] = True
-
-        X = pd.concat([src_X, tgt_X])
-        y = pd.concat([src_y, tgt_y])
-
-        return {
-            "train_X": X,
-            "train_y": y,
-            "weights": weights,
-            "test_X": test_X,
-            "test_y": test_y,
-        }
-
-
-class FreezingStrategy(Strategy):
+class FreezingStrategy(StrategyExecutor):
     def execute(self) -> None:
         tuner = self.setup_tuner()
         try:
@@ -166,7 +119,6 @@ class FreezingStrategy(Strategy):
                 y_test=data["tgt_test_y"],
             )
             self.save_results_to_json(tuning_results)
-         
 
         except Exception as ex:
             print(f"Error processing folder {self.path}:\n {str(ex)}")
@@ -178,7 +130,7 @@ class FreezingStrategy(Strategy):
         return f"{self.path}/freeze_result.json"
 
 
-class ProgressiveLearningStrategy(Strategy):
+class ProgressiveLearningStrategy(StrategyExecutor):
     def execute(self) -> None:
         tuner = self.setup_tuner()
         try:
@@ -204,7 +156,7 @@ class ProgressiveLearningStrategy(Strategy):
         return f"{self.path}/progressive_result.json"
 
 
-class FinetuningStrategy(Strategy):
+class FinetuningStrategy(StrategyExecutor):
     def __init__(
         self, path: str, augment: bool = True, prune: bool = True, reweight: bool = True
     ) -> None:
@@ -249,7 +201,6 @@ class FinetuningStrategy(Strategy):
                 prune=self.prune,
                 reweight=self.reweight,
             )
-
 
         except Exception as ex:
             print(f"Error processing folder {self.path}:\n {str(ex)}")

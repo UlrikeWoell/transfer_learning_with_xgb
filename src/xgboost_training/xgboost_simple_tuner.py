@@ -1,8 +1,11 @@
 import os
 from dataclasses import dataclass, field
+from src.xgboost_training.xgboost_tuner_config import DefaultXGBoostTunerConfig
 
 from src.xgboost_training.data_loader import SimpleDataLoader
-from src.xgboost_training.xgboost_tuner import DefaultXGBoostTunerConfig, XGBoostTuner
+from src.xgboost_training.xgboost_transfer_tuner import (
+    XGBoostTransferTuner,
+)
 
 
 @dataclass
@@ -41,7 +44,7 @@ class TuningRoutine:
                     test_file_name=self.test_file,
                     train_file_name=self.train_file,
                 )
-                tuner = XGBoostTuner(tuner_config)
+                tuner = XGBoostTransferTuner(tuner_config)
 
                 try:
                     data = loader.load_data()

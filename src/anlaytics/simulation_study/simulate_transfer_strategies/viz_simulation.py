@@ -346,7 +346,7 @@ class Plot(ABC):
                         "smaller": s,
                         "larger": l,
                         f"prob": prob,
-                        'label': "" if not prob else str(prob)
+                        "label": "" if not prob else str(prob),
                     }
                     heat.append(row)
 
@@ -356,8 +356,17 @@ class Plot(ABC):
         df = self.get_heatmap_of_rankings_data()
         sns.set_theme()
 
-        for scenario in self.scenarios:
-            fig, ax = plt.subplots(figsize=(6, 6))
+        fig, axes = plt.subplots(
+            nrows=4, ncols=2, figsize=(9, 12), sharex=True, sharey=True
+        )
+
+        axes_flat = axes.flatten()
+        fig.delaxes(axes_flat[7])
+        axes_flat = axes_flat[0:7]
+
+        # Loop through the subplots and set the data
+        for i, ax in enumerate(axes_flat):
+            scenario = self.scenarios[i]
             subset = df[df["scenario"] == scenario]
             df_heatmap = subset.pivot_table(
                 values="prob", index="smaller", columns="larger", aggfunc=np.mean
@@ -366,19 +375,32 @@ class Plot(ABC):
             df_heatmap = df_heatmap.reindex(self.strategies)
             df_heatmap = df_heatmap.rename(
                 index={"Progressive learning": "Progr. Learning"},
-                columns={"Progressive learning": "Progr. Learning"},
+                columns={
+                    "Progressive learning": "Prg",
+                    "Source only": "Src",
+                    "Target only": "Tgt",
+                    "Combination": "Com",
+                    "Freeze": "Frz",
+                    "Finetune P": "P",
+                    "Finetune R": "R",
+                    "Finetune PR": "PR",
+                    "Finetune AP": "AP",
+                    "Finetune AR": "AR",
+                    "Finetune APR": "APR",
+                },
             )
 
-            ax = sns.heatmap(
+            sns.heatmap(
                 df_heatmap,
                 annot=True,
                 center=0.5,
                 cmap="coolwarm_r",
                 square=True,
-                annot_kws={"fontsize": 8},
+                annot_kws={"fontsize": 7},
                 cbar=False,
                 linewidth=1,
                 linecolor="w",
+                ax=ax,
             )
             for item in (
                 [ax.xaxis.label, ax.yaxis.label]
@@ -386,15 +408,17 @@ class Plot(ABC):
                 + ax.get_yticklabels()
             ):
                 item.set_fontsize(8)
-            plt.title(f"Scenario: {self.scenario_map[scenario]}", fontsize=10)
-            plt.ylabel("Probability that this strategy ranks better ...", fontsize=9)
-            plt.xlabel("... than this strategy", fontsize=9)
-            plt.tight_layout()
-            # plt.show()
-            fig.savefig(f"images/ranks/rank_{self.scenario_map[scenario]}.png")
+            ax.set_title(f"Scenario: {self.scenario_map[scenario]}", fontsize=8)
+            ax.set_ylabel("")
+            ax.set_xlabel("")
+        axes_flat[2].set_ylabel("Probability that this strategy ranks better ...")
+        axes_flat[-1].set_xlabel("... than this strategy")
+        plt.tight_layout()
+        #plt.show()
+        fig.savefig(f"images/ranks/rank_all.png")
 
 
 p = Plot()
-# p.make_dotplot_by_strategy()
-# p.make_rank_plot()
+p.make_dotplot_by_strategy()
+p.make_rank_plot()
 p.make_heatmap()

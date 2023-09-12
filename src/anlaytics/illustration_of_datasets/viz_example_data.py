@@ -20,7 +20,7 @@ class PairPlotMaker(ABC):
     ) -> None:
         self.root_dir = root_dir
         self.data_csv_name = data_csv_name
-        self.log_name = log_name
+        self.log_name = log_name 
         self.save_path = save_path
         self.figsize = figsize
 
@@ -66,7 +66,7 @@ class PairPlotMaker(ABC):
         plt.close()  # Close the plot to release resources
 
     def format_plot(self, g, title):
-        fontsize = 10
+        fontsize = 14
         for ax in g.axes.flat:
             if ax is None:  # Skip over None axes
                 continue
@@ -98,7 +98,7 @@ class PlotCombiner:
     def concat_images(self, images: list[Image.Image]):
         single_width = images[0].width
         single_height = images[0].height
-        final_image = Image.new("RGB", (single_width * 3, single_height))
+        final_image = Image.new("RGB", (single_width * 3, single_height), color=(255,255,255))
 
         for i, image in enumerate(images):
             final_image.paste(image, box=(single_width * i, 0))

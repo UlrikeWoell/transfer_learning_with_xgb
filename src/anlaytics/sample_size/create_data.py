@@ -2,9 +2,9 @@ import datetime
 import random
 import time
 
-from src.data_generating_process.data_set_maker import DataSetMaker
+from src.anlaytics.study.simulate_transfer_strategies.experiment_maker import DataSetMaker
 from src.data_generating_process.domain_parameters import RndCensoredVariables
-from src.data_generating_process.domainV2 import (
+from src.data_generating_process.domain import (
     DomainGenerator,
     DomainParameters,
     SamplingParameters,

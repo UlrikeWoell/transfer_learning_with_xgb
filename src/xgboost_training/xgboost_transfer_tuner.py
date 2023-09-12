@@ -1,42 +1,23 @@
 import json
-from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, Tuple
 
 import numpy as np
 import pandas as pd
 import xgboost as xgb
 from scipy.stats import uniform
-from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
+from sklearn.metrics import average_precision_score, roc_auc_score
 from sklearn.model_selection import RandomizedSearchCV
 
-
-@dataclass
-class XGBoostTunerConfig:
-    random_seed: int
-    n_estimators: List[int]
-    learning_rate_range: tuple[float, float]
-    gamma_range: tuple[float, float]
-    max_depth_values: List[int]
-    colsample_bylevel: float
-    subsample: float
-    n_iterations: int
-    cv: int
+from src.xgboost_training.xgboost_tuner_config import XGBoostTunerConfig
 
 
-DefaultXGBoostTunerConfig = XGBoostTunerConfig(
-    random_seed=27071990,
-    n_estimators=[50, 100, 150, 200],
-    learning_rate_range=(0.025, 0.3),
-    gamma_range=(0.1, 0.5),
-    max_depth_values=[2, 3, 5, 7, 10, 30],
-    colsample_bylevel=0.5,
-    subsample=0.75,
-    n_iterations=70,
-    cv=2,
-)
+PROG_EARLY_STOPPING_ROUNDS = 20
+FREEZE_N_TREES = [0, 0.2, 0.4, 0.6, 0.8, 1]
+PROG_LEARNINGRATE_REDUCTION = 0.75
+PROG_N_TREES_INCREASE = 2
+FINETUNE_MIN_LEAF_CNT = 20
 
-
-class XGBoostTuner:
+class XGBoostTransferTuner:
     def __init__(self, tuner_config: XGBoostTunerConfig):
         self.random_seed = tuner_config.random_seed
         self.n_estimators = tuner_config.n_estimators
@@ -46,54 +27,7 @@ class XGBoostTuner:
         self.colsample_bylevel = tuner_config.colsample_bylevel
         self.subsample = tuner_config.subsample
         self.n_iterations = tuner_config.n_iterations
-        self.cv = 2
-
-    def tune_model(
-        self,
-        X_train: pd.DataFrame,
-        y_train: pd.DataFrame,
-        X_test: pd.DataFrame,
-        y_test: pd.DataFrame,
-        sample_weight: pd.DataFrame | None = None,
-    ) -> Tuple[Dict[str, Any], xgb.XGBClassifier]:
-        model = self.get_model()
-        param_dist = self.get_param_dist()
-
-        random_search = RandomizedSearchCV(
-            model,
-            param_distributions=param_dist,
-            n_iter=self.n_iterations,
-            scoring="roc_auc",
-            random_state=self.random_seed,
-            cv=self.cv,
-            n_jobs=-1,
-        )
-        
-        try:
-            random_search.fit(X_train, y_train, sample_weight=sample_weight)
-        except Exception as excep: 
-            print(excep)
-            tuning_results = {"success": False, "msg": excep}
-            return tuning_results
-        
-        model = random_search.best_estimator_
-
-        metrics = self.calculate_metrics(random_search.best_estimator_, X_test, y_test)
-
-        tuning_results = {
-            "success": True,
-            "msg": None,
-            "learning_rate": random_search.best_params_["learning_rate"],
-            "gamma": random_search.best_params_["gamma"],
-            "max_depth": random_search.best_params_["max_depth"],
-            "rs_best_params": random_search.best_params_,
-            "best_estimator_params": random_search.best_estimator_.get_params(),
-        }
-
-        tuning_results.update(metrics)
-
-        return tuning_results, model
-        
+        self.cv = tuner_config.cv
 
     def get_param_dist(self):
         param_dist = {
@@ -115,6 +49,96 @@ class XGBoostTuner:
 
         return model
 
+    def tune_model(
+        self,
+        X_train: pd.DataFrame,
+        y_train: pd.DataFrame,
+        X_test: pd.DataFrame,
+        y_test: pd.DataFrame,
+        sample_weight: pd.DataFrame | None = None,
+    ) -> Tuple[Dict[str, Any], xgb.XGBClassifier]:
+        model = self.get_model()
+        param_dist = self.get_param_dist()
+
+        random_search = RandomizedSearchCV(
+            model,
+            param_distributions=param_dist,
+            n_iter=self.n_iterations,
+            scoring="roc_auc",
+            random_state=self.random_seed,
+            cv=self.cv,
+            n_jobs=-1,
+        )
+
+        try:
+            random_search.fit(X_train, y_train, sample_weight=sample_weight)
+        except Exception as excep:
+            print(excep)
+            tuning_results = {"success": False, "msg": excep}
+            return tuning_results
+
+        model = random_search.best_estimator_
+
+        metrics = self.calculate_metrics(random_search.best_estimator_, X_test, y_test)
+
+        tuning_results = {
+            "success": True,
+            "msg": None,
+            "learning_rate": random_search.best_params_["learning_rate"],
+            "gamma": random_search.best_params_["gamma"],
+            "max_depth": random_search.best_params_["max_depth"],
+            "rs_best_params": random_search.best_params_,
+            "best_estimator_params": random_search.best_estimator_.get_params(),
+        }
+
+        tuning_results.update(metrics)
+
+        return tuning_results, model
+
+    def _combine_data(self, data: Dict[str, pd.DataFrame]) -> Dict[str, pd.DataFrame]:
+        src_X = data["src_train_X"]
+        src_y = data["src_train_y"]
+        tgt_X = data["tgt_train_X"]
+        tgt_y = data["tgt_train_y"]
+
+        test_X = data["tgt_test_X"]
+        test_y = data["tgt_test_y"]
+
+        # weights
+        src_n = src_X.shape[0]
+        tgt_n = tgt_X.shape[0]
+        tgt_weights = pd.DataFrame([src_n / tgt_n] * tgt_n)
+        src_weights = pd.DataFrame([1] * src_n)
+        weights = pd.concat([src_weights, tgt_weights])
+
+        # New feature: Data origin
+        src_X["from_tgt"] = False
+        tgt_X["from_tgt"] = True
+        test_X["from_tgt"] = True
+
+        X = pd.concat([src_X, tgt_X])
+        y = pd.concat([src_y, tgt_y])
+
+        return {
+            "train_X": X,
+            "train_y": y,
+            "weights": weights,
+            "test_X": test_X,
+            "test_y": test_y,
+        }
+
+    def tune_combination_model(self, data: dict) -> dict[str, bool | Any | None]:
+        combined_data = self._combine_data(data)
+        tuning_results, _ = self.tune_model(
+            X_train=combined_data["train_X"],
+            y_train=combined_data["train_y"],
+            X_test=combined_data["test_X"],
+            y_test=combined_data["test_y"],
+            sample_weight=combined_data["weights"],
+        )
+
+        return tuning_results
+
     def tune_freeze_model(
         self,
         X_train_1: pd.DataFrame,
@@ -130,7 +154,8 @@ class XGBoostTuner:
         best_params = tuning_result["best_estimator_params"]
         t0 = best_params["n_estimators"]
 
-        freeze_n_trees = [round(i * t0) for i in [0, 0.2, 0.4, 0.6, 0.8, 1]]
+        
+        freeze_n_trees = [round(i * t0) for i in FREEZE_N_TREES]
         best_score = 0
         best_swap_time = None
         best_metrics = None
@@ -142,7 +167,7 @@ class XGBoostTuner:
             model.set_params(n_estimators=t0)
             model.fit(X_train_2, y_train_2, xgb_model=model.get_booster())
             metrics = self.calculate_metrics(model, X_test, y_test)
-            score = metrics["auc_pr"]
+            score = metrics["auc_roc"]
             if score > best_score:
                 best_score = score
                 best_swap_time = swap_time
@@ -178,15 +203,16 @@ class XGBoostTuner:
         eval_set = [(X_train_1, y_train_1), (X_test, y_test)]
 
         model = xgb.XGBClassifier(**best_params)
+        
         model.set_params(
-            early_stopping_rounds=20,
+            early_stopping_rounds=PROG_EARLY_STOPPING_ROUNDS,
             eval_metric="logloss",
         )
 
         model.fit(X_train_1, y_train_1, eval_set=eval_set, verbose=False)
         step1_parameters = model.get_params()
-        new_eta = 0.75 * model.get_params()["learning_rate"]
-        new_n_estimators = round(2 * model.get_params()["n_estimators"])
+        new_eta = PROG_LEARNINGRATE_REDUCTION * model.get_params()["learning_rate"]
+        new_n_estimators = round(PROG_N_TREES_INCREASE * model.get_params()["n_estimators"])
         model.set_params(learning_rate=new_eta, n_estimators=new_n_estimators)
 
         model.fit(
@@ -267,7 +293,7 @@ class XGBoostTuner:
 
         metrics = self.calculate_metrics(
             model=reweighted_model, X_test=X_test_tgt, y_test=y_test_tgt
-        ) 
+        )
         tuning_results = {
             "success": True,
             "msg": None,
@@ -313,7 +339,7 @@ class XGBoostTuner:
             pd.DataFrame: The augmented feature matrix for the target training data.
             pd.DataFrame: The augmented labels for the target training data.
         """
-        min_leaf_cnt = 20
+        
 
         booster = model.get_booster()
         src_leaf_indices = booster.predict(
@@ -337,8 +363,8 @@ class XGBoostTuner:
 
             # Iterate through the leaf counts for the current tree
             for leaf_idx, count in enumerate(tgt_leaf_counts):
-                if count < min_leaf_cnt:
-                    extra_samples_needed = min_leaf_cnt - count
+                if count < FINETUNE_MIN_LEAF_CNT:
+                    extra_samples_needed = FINETUNE_MIN_LEAF_CNT - count
 
                     if extra_samples_needed > 0:
                         selected_indices = src_leaf_indices_tree == leaf_idx
